@@ -11,11 +11,6 @@
   "license": "CC0-1.0",
   "icon": "assets/modid/icon.png",
   "environment": "*",
-  "entrypoints": {
-    "main": [
-      "technici4n.advdebug.AdvDebug"
-    ]
-  },
   "mixins": [
     "advdebug.mixins.json"
   ],

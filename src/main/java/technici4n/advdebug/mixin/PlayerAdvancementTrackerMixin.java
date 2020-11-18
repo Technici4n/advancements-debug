@@ -1,27 +1,50 @@
 package technici4n.advdebug.mixin;
 
+import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import net.minecraft.advancement.Advancement;
+import net.minecraft.advancement.AdvancementProgress;
 import net.minecraft.advancement.PlayerAdvancementTracker;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
-import technici4n.advdebug.AdvDebug;
+
+import java.util.*;
 
 @Mixin(PlayerAdvancementTracker.class)
 public abstract class PlayerAdvancementTrackerMixin {
-    @Shadow
-    protected abstract void updateDisplay(Advancement advancement);
+    @Shadow @Final private Set<Advancement> visibleAdvancements;
+    @Shadow @Final private Set<Advancement> visibilityUpdates;
+    @Shadow @Final private Set<Advancement> progressUpdates;
+    @Shadow @Final private Map<Advancement, AdvancementProgress> advancementToProgress;
+    @Shadow protected abstract boolean canSee(Advancement advancement);
 
-    @Redirect(at = @At(value = "INVOKE", target = "Lnet/minecraft/advancement/PlayerAdvancementTracker;updateDisplay(Lnet/minecraft/advancement/Advancement;)V"), method = "updateDisplay", require = 1)
-    private void updateDisplayRedirect(PlayerAdvancementTracker tracker, Advancement advancement) {
-        AdvDebug.recursionDepth++;
-        if (AdvDebug.recursionDepth > 50) {
-            String advId = advancement.getId().toString();
-            String parentId = advancement.getParent() == null ? "(no parent)" : advancement.getParent().getId().toString();
-            AdvDebug.LOGGER.info("updateDisplay called with advancement {}, its parent is {}, depth is {}", advId, parentId, AdvDebug.recursionDepth);
+    private void updateDisplayDfs(Advancement advancement, Set<Advancement> visited) {
+        if(visited.add(advancement)) {
+            boolean bl = this.canSee(advancement);
+            boolean bl2 = this.visibleAdvancements.contains(advancement);
+            if (bl && !bl2) {
+                this.visibleAdvancements.add(advancement);
+                this.visibilityUpdates.add(advancement);
+                if (this.advancementToProgress.containsKey(advancement)) {
+                    this.progressUpdates.add(advancement);
+                }
+            } else if (!bl && bl2) {
+                this.visibleAdvancements.remove(advancement);
+                this.visibilityUpdates.add(advancement);
+            }
+
+            for(Advancement child : advancement.getChildren()) {
+                updateDisplayDfs(child, visited);
+            }
+
+            Advancement parent = advancement.getParent();
+            if (bl != bl2 && parent != null) {
+                updateDisplayDfs(parent, visited);
+            }
         }
-        updateDisplay(advancement);
-        AdvDebug.recursionDepth--;
+    }
+
+    protected void updateDisplay(Advancement advancement) {
+        updateDisplayDfs(advancement, new ReferenceOpenHashSet<>());
     }
 }
