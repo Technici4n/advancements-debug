@@ -4,7 +4,7 @@
   "version": "${version}",
 
   "name": "Advancements Debug",
-  "description": "This is a mod to debug the advancements SOE",
+  "description": "This little mod rewrites one function of the advancements logic to make advancements checking faster, and use less recursion. It should prevent StackOverflowErrors with advancements.",
   "authors": [
     "Technici4n"
   ],
